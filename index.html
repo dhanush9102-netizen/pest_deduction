@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Field Diagnosis — Crop Health Scanner</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --soil:#2F5233;
+    --soil-dark:#1E3A22;
+    --wheat:#E8A33D;
+    --wheat-dark:#C9862A;
+    --paper:#F7F5EF;
+    --card:#FFFFFF;
+    --ink:#26261F;
+    --ink-soft:#5B5B4F;
+    --line:#DEDACC;
+    --sky:#6FA8B5;
+    --danger:#B4482E;
+    --ok:#4C7A3C;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'Inter',sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  h1,h2,h3,.display{
+    font-family:'Manrope',sans-serif;
+    letter-spacing:-0.01em;
+  }
+
+  /* ---------- Header ---------- */
+  header{
+    background:var(--soil);
+    color:var(--paper);
+    padding:28px 20px 60px;
+    position:relative;
+    overflow:hidden;
+  }
+  header::after{
+    content:"";
+    position:absolute;
+    right:-40px; top:-60px;
+    width:220px; height:220px;
+    border-radius:50%;
+    background:radial-gradient(circle, rgba(232,163,61,0.25) 0%, transparent 70%);
+  }
+  .eyebrow{
+    font-size:12px;
+    text-transform:uppercase;
+    letter-spacing:0.14em;
+    color:var(--wheat);
+    font-weight:700;
+    margin-bottom:8px;
+  }
+  header h1{
+    font-size:26px;
+    font-weight:800;
+    margin:0 0 6px;
+    max-width:420px;
+  }
+  header p{
+    margin:0;
+    color:#D7E0D3;
+    font-size:14px;
+    max-width:380px;
+    line-height:1.5;
+  }
+
+  /* ---------- Upload card ---------- */
+  main{
+    max-width:520px;
+    margin:-38px auto 60px;
+    padding:0 20px;
+  }
+  .card{
+    background:var(--card);
+    border-radius:18px;
+    box-shadow:0 12px 30px rgba(30,58,34,0.14);
+    padding:20px;
+    border:1px solid var(--line);
+  }
+  .dropzone{
+    border:2px dashed #C7C1AC;
+    border-radius:14px;
+    padding:28px 16px;
+    text-align:center;
+    cursor:pointer;
+    transition:border-color .2s, background .2s;
+    background:#FBFAF6;
+  }
+  .dropzone.drag{
+    border-color:var(--wheat);
+    background:#FFF7E8;
+  }
+  .dropzone svg{ width:40px; height:40px; margin-bottom:10px; }
+  .dropzone .primary{
+    font-weight:600;
+    font-size:15px;
+    margin-bottom:4px;
+  }
+  .dropzone .secondary{
+    font-size:13px;
+    color:var(--ink-soft);
+  }
+  input[type=file]{ display:none; }
+
+  .preview-wrap{
+    display:none;
+    margin-top:16px;
+  }
+  .preview-wrap.show{ display:block; }
+  .preview-wrap img{
+    width:100%;
+    max-height:260px;
+    object-fit:cover;
+    border-radius:12px;
+    display:block;
+  }
+
+  .scan-line{
+    position:relative;
+    overflow:hidden;
+    border-radius:12px;
+  }
+  .scan-line::before{
+    content:"";
+    position:absolute;
+    left:0; right:0; top:0;
+    height:3px;
+    background:linear-gradient(90deg, transparent, var(--wheat), transparent);
+    box-shadow:0 0 12px 2px var(--wheat);
+    animation:scan 1.6s ease-in-out infinite;
+  }
+  @keyframes scan{
+    0%{ top:0; }
+    50%{ top:100%; }
+    100%{ top:0; }
+  }
+
+  button.submit{
+    width:100%;
+    margin-top:16px;
+    padding:14px;
+    border:none;
+    border-radius:12px;
+    background:var(--wheat);
+    color:var(--soil-dark);
+    font-family:'Manrope',sans-serif;
+    font-weight:800;
+    font-size:15px;
+    cursor:pointer;
+    transition:background .15s, transform .1s;
+  }
+  button.submit:hover{ background:var(--wheat-dark); }
+  button.submit:active{ transform:scale(0.98); }
+  button.submit:disabled{
+    background:#D8D2BE;
+    color:#8A8672;
+    cursor:not-allowed;
+  }
+  button.submit:focus-visible, .dropzone:focus-visible{
+    outline:3px solid var(--sky);
+    outline-offset:2px;
+  }
+
+  .status{
+    margin-top:12px;
+    font-size:13px;
+    color:var(--ink-soft);
+    text-align:center;
+    min-height:16px;
+  }
+  .status.error{ color:var(--danger); font-weight:600; }
+
+  /* ---------- Result ticket ---------- */
+  .ticket{
+    display:none;
+    margin-top:22px;
+    background:var(--card);
+    border-radius:16px;
+    border:1px solid var(--line);
+    box-shadow:0 12px 30px rgba(30,58,34,0.1);
+    overflow:hidden;
+  }
+  .ticket.show{ display:block; animation:rise .35s ease; }
+  @keyframes rise{ from{opacity:0; transform:translateY(10px);} to{opacity:1; transform:translateY(0);} }
+
+  .ticket-head{
+    background:var(--soil-dark);
+    color:var(--paper);
+    padding:18px 20px;
+    position:relative;
+  }
+  .ticket-head .crop{
+    font-size:12px;
+    text-transform:uppercase;
+    letter-spacing:0.12em;
+    color:var(--wheat);
+    font-weight:700;
+  }
+  .ticket-head h2{
+    margin:4px 0 0;
+    font-size:20px;
+    font-weight:800;
+  }
+  .severity-pill{
+    position:absolute;
+    top:18px; right:18px;
+    font-size:11px;
+    font-weight:700;
+    text-transform:uppercase;
+    letter-spacing:0.06em;
+    padding:5px 10px;
+    border-radius:999px;
+  }
+  .sev-low{ background:#E4F0DF; color:var(--ok); }
+  .sev-moderate{ background:#FCEBD1; color:var(--wheat-dark); }
+  .sev-high{ background:#F7DAD1; color:var(--danger); }
+  .sev-critical{ background:var(--danger); color:#fff; }
+
+  .perforation{
+    height:14px;
+    background:
+      radial-gradient(circle at 6px 0, transparent 6px, var(--paper) 6.5px) repeat-x;
+    background-size:16px 14px;
+    background-color:var(--soil-dark);
+  }
+
+  .ticket-body{ padding:18px 20px 6px; }
+  .cause{
+    font-size:14px;
+    line-height:1.55;
+    color:var(--ink);
+    margin:0 0 18px;
+    padding-bottom:16px;
+    border-bottom:1px dashed var(--line);
+  }
+  .cause strong{ display:block; font-size:11px; text-transform:uppercase; letter-spacing:0.1em; color:var(--ink-soft); margin-bottom:6px; }
+
+  .section{ margin-bottom:18px; }
+  .section h3{
+    font-size:13px;
+    text-transform:uppercase;
+    letter-spacing:0.08em;
+    margin:0 0 10px;
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  .dot{ width:8px; height:8px; border-radius:50%; display:inline-block; }
+  .dot.organic{ background:var(--ok); }
+  .dot.chemical{ background:var(--sky); }
+  .dot.prevent{ background:var(--wheat-dark); }
+
+  .section ul{
+    margin:0;
+    padding:0;
+    list-style:none;
+  }
+  .section li{
+    font-size:13.5px;
+    line-height:1.5;
+    color:var(--ink);
+    padding:8px 0 8px 22px;
+    position:relative;
+    border-top:1px solid #F0EEE4;
+  }
+  .section li:first-child{ border-top:none; }
+  .section li::before{
+    content:"";
+    position:absolute;
+    left:0; top:14px;
+    width:6px; height:6px;
+    border-radius:50%;
+    background:var(--line);
+  }
+
+  .confidence-row{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:14px 20px 20px;
+    font-size:12px;
+    color:var(--ink-soft);
+  }
+  .confidence-row span.value{ color:var(--soil); font-weight:700; }
+
+  footer{
+    text-align:center;
+    font-size:12px;
+    color:var(--ink-soft);
+    padding:0 20px 30px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="eyebrow">Field Diagnosis</div>
+  <h1>Point, upload, know what's wrong with your crop.</h1>
+  <p>Take a clear photo of the affected leaf or plant. Our AI agronomist reads it and gives you a treatment plan in seconds.</p>
+</header>
+
+<main>
+  <div class="card">
+    <label class="dropzone" id="dropzone" tabindex="0" for="fileInput">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#8A8672" stroke-width="1.6"><path d="M4 16.5V18a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-1.5M7 9l5-5 5 5M12 4v13" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <div class="primary">Upload a crop photo</div>
+      <div class="secondary">Tap to choose, or drag an image here</div>
+    </label>
+    <input type="file" id="fileInput" accept="image/*" capture="environment">
+
+    <div class="preview-wrap" id="previewWrap">
+      <div id="previewFrame">
+        <img id="previewImg" alt="Selected crop photo">
+      </div>
+    </div>
+
+    <button class="submit" id="submitBtn" disabled>Diagnose this plant</button>
+    <div class="status" id="statusMsg"></div>
+  </div>
+
+  <div class="ticket" id="ticket">
+    <div class="ticket-head">
+      <div class="crop" id="ticketCrop">Crop</div>
+      <h2 id="ticketDisease">Disease name</h2>
+      <span class="severity-pill" id="severityPill">Severity</span>
+    </div>
+    <div class="perforation"></div>
+    <div class="ticket-body">
+      <p class="cause"><strong>Likely cause</strong><span id="ticketCause"></span></p>
+
+      <div class="section">
+        <h3><span class="dot organic"></span>Organic treatment</h3>
+        <ul id="organicList"></ul>
+      </div>
+
+      <div class="section">
+        <h3><span class="dot chemical"></span>Chemical treatment</h3>
+        <ul id="chemicalList"></ul>
+      </div>
+
+      <div class="section">
+        <h3><span class="dot prevent"></span>Prevention</h3>
+        <ul id="preventList"></ul>
+      </div>
+    </div>
+    <div class="confidence-row">
+      <span>Detection confidence</span>
+      <span class="value" id="confidenceVal">—</span>
+    </div>
+  </div>
+
+  <footer>Diagnoses are AI-generated guidance. For high-value crops or uncertain cases, confirm with your local agricultural extension officer.</footer>
+</main>
+
+<script>
+  // ---- CONFIGURE THIS: your n8n webhook URL ----
+  const WEBHOOK_URL = "http://localhost:5678/webhook/crop-disease-detect";
+
+  const dropzone   = document.getElementById('dropzone');
+  const fileInput  = document.getElementById('fileInput');
+  const previewWrap= document.getElementById('previewWrap');
+  const previewImg = document.getElementById('previewImg');
+  const previewFrame = document.getElementById('previewFrame');
+  const submitBtn  = document.getElementById('submitBtn');
+  const statusMsg  = document.getElementById('statusMsg');
+  const ticket     = document.getElementById('ticket');
+
+  let selectedFile = null;
+
+  function handleFile(file){
+    if(!file || !file.type.startsWith('image/')) return;
+    selectedFile = file;
+    const url = URL.createObjectURL(file);
+    previewImg.src = url;
+    previewWrap.classList.add('show');
+    submitBtn.disabled = false;
+    statusMsg.textContent = '';
+    statusMsg.classList.remove('error');
+    ticket.classList.remove('show');
+  }
+
+  fileInput.addEventListener('change', e => handleFile(e.target.files[0]));
+
+  dropzone.addEventListener('keydown', e => {
+    if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); fileInput.click(); }
+  });
+
+  ['dragenter','dragover'].forEach(evt =>
+    dropzone.addEventListener(evt, e => { e.preventDefault(); dropzone.classList.add('drag'); })
+  );
+  ['dragleave','drop'].forEach(evt =>
+    dropzone.addEventListener(evt, e => { e.preventDefault(); dropzone.classList.remove('drag'); })
+  );
+  dropzone.addEventListener('drop', e => {
+    const file = e.dataTransfer.files[0];
+    if(file) handleFile(file);
+  });
+
+  function severityClass(sev){
+    const s = (sev || '').toLowerCase();
+    if(s.includes('critical')) return 'sev-critical';
+    if(s.includes('high')) return 'sev-high';
+    if(s.includes('moderate')) return 'sev-moderate';
+    return 'sev-low';
+  }
+
+  function fillList(el, items){
+    el.innerHTML = '';
+    (items || []).forEach(text => {
+      const li = document.createElement('li');
+      li.textContent = text;
+      el.appendChild(li);
+    });
+    if(!items || items.length === 0){
+      const li = document.createElement('li');
+      li.textContent = 'No specific guidance returned.';
+      el.appendChild(li);
+    }
+  }
+
+  async function diagnose(){
+    if(!selectedFile) return;
+
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Reading the leaf…';
+    statusMsg.textContent = 'Analyzing your photo — this can take up to 15 seconds.';
+    statusMsg.classList.remove('error');
+    ticket.classList.remove('show');
+    previewFrame.classList.add('scan-line');
+
+    try {
+      const formData = new FormData();
+      formData.append('image', selectedFile, selectedFile.name);
+
+      const res = await fetch(WEBHOOK_URL, { method: 'POST', body: formData });
+      if(!res.ok) throw new Error('Server returned ' + res.status);
+
+      const data = await res.json();
+      renderResult(data);
+      statusMsg.textContent = 'Diagnosis complete.';
+    } catch (err) {
+      console.error(err);
+      statusMsg.textContent = "Couldn't reach the diagnosis service. Check your connection and try again.";
+      statusMsg.classList.add('error');
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Diagnose this plant';
+      previewFrame.classList.remove('scan-line');
+    }
+  }
+
+  function renderResult(data){
+    document.getElementById('ticketCrop').textContent = data.crop || 'Unknown crop';
+    document.getElementById('ticketDisease').textContent = data.disease_name || data.detected_issue || 'Unspecified issue';
+    document.getElementById('ticketCause').textContent = data.cause || 'No cause information returned.';
+
+    const pill = document.getElementById('severityPill');
+    pill.textContent = data.severity || 'Unknown';
+    pill.className = 'severity-pill ' + severityClass(data.severity);
+
+    fillList(document.getElementById('organicList'), data.organic_treatment);
+    fillList(document.getElementById('chemicalList'), data.chemical_treatment);
+    fillList(document.getElementById('preventList'), data.prevention);
+
+    const conf = data.vision_confidence;
+    document.getElementById('confidenceVal').textContent =
+      (typeof conf === 'number') ? Math.round(conf * 100) + '%' : '—';
+
+    ticket.classList.add('show');
+    ticket.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  submitBtn.addEventListener('click', diagnose);
+</script>
+
+</body>
+</html>
